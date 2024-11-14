@@ -11,6 +11,8 @@ public class ClientHandler implements Runnable {
     private PrintWriter out;
     private static TopicManager topicManager = new TopicManager();
     private static SubscriberManager subscriberManager = new SubscriberManager();
+    private String clientRole = null;
+    private String subscribedTopic = null;
 
     public ClientHandler(Socket socket) throws IOException {
         this.clientSocket = socket;
@@ -37,51 +39,46 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    // Metodo per gestire i comandi inviati dal client
     private void processCommand(String command) {
         String[] tokens = command.split(" ", 2);
         String action = tokens[0].toLowerCase();
 
         switch (action) {
             case "publish":
-                if (tokens.length > 1) {
-                    topicManager.addTopic(tokens[1]);
-                    out.println("Topic '" + tokens[1] + "' creato e pronto per pubblicare.");
+                if (clientRole == null) {
+                    clientRole = "publisher";
+                    handlePublishCommand(tokens);
                 } else {
-                    out.println("Errore: specificare il nome del topic.");
+                    out.println("Errore: il client è già registrato come " + clientRole);
                 }
                 break;
 
             case "subscribe":
-                if (tokens.length > 1) {
-                    String topic = tokens[1];
-                    topicManager.addTopic(topic);
-                    subscriberManager.addSubscriber(topic, out);
-                    out.println("Iscritto al topic: " + topic);
-                } else {
-                    out.println("Errore: specificare il nome del topic.");
+                if (clientRole == null) {
+                    clientRole = "subscriber";
+                    handleSubscribeCommand(tokens);
+                } else{
+                    out.println("Errore: il client è già registrato come " + clientRole);
                 }
                 break;
 
             case "send":
-                String[] sendTokens = tokens[1].split(" ", 2);
-                if (sendTokens.length == 2) {
-                    String topic = sendTokens[0];
-                    String message = sendTokens[1];
-                    topicManager.publishMessage(topic, message);
-                    subscriberManager.notifySubscribers(topic, message);
-                    out.println("Messaggio inviato al topic '" + topic + "': " + message);
+                if ("publisher".equals(clientRole)) {
+                    handleSendCommand(tokens);
+                } else if ("subscriber".equals(clientRole)) {
+                    out.println("Errore: il client è registrato come subscriber e non può inviare messaggi.");
                 } else {
-                    out.println("Errore: specificare il topic e il messaggio.");
+                    out.println("Errore: definire prima il ruolo con 'publish' o 'subscribe'.");
                 }
                 break;
 
-            case "listall":
-                Set<String> topics = topicManager.getAllTopics();
-                if (topics.isEmpty()) {
-                    out.println("Nessun topic disponibile.");
-                } else {
-                    out.println("Topic disponibili: " + topics);
-                }
+            case "show":
+                handleShowCommand();
+                break;
+
+            case "quit":
+                handleQuitCommand();
                 break;
 
             default:
@@ -89,4 +86,59 @@ public class ClientHandler implements Runnable {
                 break;
         }
     }
+
+    private void handlePublishCommand(String[] tokens) {
+        if (tokens.length > 1) {
+            subscribedTopic = tokens[1]; // Associa il topic al publisher
+            topicManager.addTopic(subscribedTopic);
+            out.println("Topic '" + subscribedTopic + "' creato e pronto per pubblicare.");
+        } else {
+            out.println("Errore: specificare il nome del topic.");
+        }
+    }
+
+
+    private void handleSubscribeCommand(String[] tokens) {
+        if (tokens.length > 1) {
+            subscribedTopic = tokens[1];
+            topicManager.addTopic(subscribedTopic);
+            SubscriberManager.getInstance().addSubscriber(subscribedTopic, out);
+            out.println("Iscritto al topic: " + subscribedTopic);
+        } else {
+            out.println("Errore: specificare il nome del topic.");
+        }
+    }
+
+    private void handleSendCommand(String[] tokens) {
+        if (tokens.length > 1) {
+            String message = tokens[1];
+            if (subscribedTopic != null) {
+                topicManager.publishMessage(subscribedTopic, message);
+                out.println("Messaggio inviato al topic '" + subscribedTopic + "': " + message);
+            } else {
+                out.println("Errore: nessun topic associato. Usa 'publish <topic>' per definire un topic.");
+            }
+        } else {
+            out.println("Errore: specificare il messaggio da inviare. Sintassi: send <messaggio>");
+        }
+    }
+    private void handleShowCommand() {
+        Set<String> topics = topicManager.getAllTopics();
+        if (topics.isEmpty()) {
+            out.println("Nessun topic disponibile.");
+        } else {
+            out.println("Topic disponibili: " + topics);
+        }
+    }
+    private void handleQuitCommand() {
+        out.println("Connessione terminata.");
+        try {
+            in.close();
+            out.close();
+            clientSocket.close();
+        } catch (IOException e) {
+            System.err.println("Errore durante la chiusura della connessione: " + e.getMessage());
+        }
+    }
+
 }
