@@ -13,6 +13,8 @@ public class Client {
         socket = new Socket(ip, port);
         out = new PrintWriter(socket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+        new Thread(new ServerListener(in)).start();
     }
 
     public void start() throws IOException {
@@ -21,9 +23,9 @@ public class Client {
         System.out.println("Inserisci un comando:");
 
         while ((command = userInput.readLine()) != null) {
+            // Invia il comando al server
             out.println(command);
-            String response = in.readLine();
-            System.out.println("Risposta del server: " + response);
+            out.flush();
         }
     }
 
@@ -35,4 +37,26 @@ public class Client {
             e.printStackTrace();
         }
     }
+
+    private static class ServerListener implements Runnable {
+        private BufferedReader in;
+
+        public ServerListener(BufferedReader in) {
+            this.in = in;
+        }
+
+        @Override
+        public void run() {
+            try {
+                String message;
+                while ((message = in.readLine()) != null) {
+                    System.out.println(message);
+                }
+            } catch (IOException e) {
+                System.out.println("Connessione chiusa.");
+            }
+        }
+    }
 }
+
+
