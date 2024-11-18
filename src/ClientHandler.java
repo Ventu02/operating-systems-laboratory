@@ -3,16 +3,17 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.List;
 import java.util.Set;
 
 public class ClientHandler implements Runnable {
     private Socket clientSocket;
     private BufferedReader in;
     private PrintWriter out;
-    private static TopicManager topicManager = new TopicManager();
-    private static SubscriberManager subscriberManager = new SubscriberManager();
-    private String clientRole = null;
-    private String subscribedTopic = null;
+    private static TopicManager topicManager = new TopicManager(); // Gestore dei topic
+    private static SubscriberManager subscriberManager = new SubscriberManager(); // Gestore dei subscriber
+    private String clientRole = null; // Ruolo del client (publisher o subscriber)
+    private String subscribedTopic = null; // Topic a cui il client è iscritto (se subscriber)
 
     public ClientHandler(Socket socket) throws IOException {
         this.clientSocket = socket;
@@ -46,7 +47,7 @@ public class ClientHandler implements Runnable {
 
         switch (action) {
             case "publish":
-                if (clientRole == null) {
+                if (clientRole==null) {
                     clientRole = "publisher";
                     handlePublishCommand(tokens);
                 } else {
@@ -77,6 +78,15 @@ public class ClientHandler implements Runnable {
                 handleShowCommand();
                 break;
 
+            case "list":
+                if ("publisher".equals(clientRole)) {
+                    handleListCommand();
+                } else {
+                    out.println("Errore: solo i publisher possono utilizzare il comando 'list'.");
+                }
+                break;
+
+
             case "quit":
                 handleQuitCommand();
                 break;
@@ -101,8 +111,8 @@ public class ClientHandler implements Runnable {
     private void handleSubscribeCommand(String[] tokens) {
         if (tokens.length > 1) {
             subscribedTopic = tokens[1];
-            topicManager.addTopic(subscribedTopic);
-            SubscriberManager.getInstance().addSubscriber(subscribedTopic, out);
+            topicManager.addTopic(subscribedTopic); // Crea il topic se non esiste
+            SubscriberManager.getInstance().addSubscriber(subscribedTopic, out); // Aggiunge il client come subscriber
             out.println("Iscritto al topic: " + subscribedTopic);
         } else {
             out.println("Errore: specificare il nome del topic.");
@@ -112,8 +122,8 @@ public class ClientHandler implements Runnable {
     private void handleSendCommand(String[] tokens) {
         if (tokens.length > 1) {
             String message = tokens[1];
-            if (subscribedTopic != null) {
-                topicManager.publishMessage(subscribedTopic, message);
+            if (subscribedTopic != null) { // Assicura che il publisher abbia un topic definito
+                topicManager.publishMessage(subscribedTopic, message); // Pubblica il messaggio sul topic del publisher
                 out.println("Messaggio inviato al topic '" + subscribedTopic + "': " + message);
             } else {
                 out.println("Errore: nessun topic associato. Usa 'publish <topic>' per definire un topic.");
@@ -141,4 +151,26 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    private void handleListCommand() {
+        if (subscribedTopic != null) { //controllo se un client ha un topic associato
+            List<Message> messages = topicManager.getMessagesByPublisher(subscribedTopic);
+            if (messages.isEmpty()) {
+                out.println("Nessun messaggio inviato su questo topic.");
+            } else {
+                out.println("Messaggi inviati:");
+                for (Message message : messages) {
+                    out.println(message); //stampa id,testo e data di ciascun messaggio
+                }
+            }
+        } else {
+            out.println("Errore: nessun topic associato. Usa 'publish <topic>' per definire un topic.");
+        }
+    }
+
+
 }
+
+
+
+
+
