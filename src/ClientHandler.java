@@ -10,7 +10,7 @@ public class ClientHandler implements Runnable {
     private Socket clientSocket;
     private BufferedReader in;
     private PrintWriter out;
-    private static TopicManager topicManager = new TopicManager(); // Gestore dei topic
+    static TopicManager topicManager = new TopicManager(); // Gestore dei topic
     private static SubscriberManager subscriberManager = new SubscriberManager(); // Gestore dei subscriber
     private String clientRole = null; // Ruolo del client (publisher o subscriber)
     private String subscribedTopic = null; // Topic a cui il client è iscritto (se subscriber)
@@ -28,17 +28,20 @@ public class ClientHandler implements Runnable {
     public void run() {
         try {
             String request;
-            while ((request = in.readLine()) != null) {
+            //Controllo che il socket non sia stato chiuso prima di leggere un nuovo comando
+            while (!clientSocket.isClosed() && (request = in.readLine()) != null) {
                 System.out.println("Ricevuto comando dal client: " + request);
                 processCommand(request);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            if (!clientSocket.isClosed()) {
+                System.err.println("Errore durante la gestione del client: " + e.getMessage());
+            }
         } finally {
             try {
-                clientSocket.close();
+                disconnect(); // Chiude in sicurezza il client
             } catch (IOException e) {
-                e.printStackTrace();
+                System.err.println("Errore durante la chiusura del client: " + e.getMessage());
             }
         }
     }
@@ -123,8 +126,6 @@ public class ClientHandler implements Runnable {
         }
     }
 
-
-
     private void handleSubscribeCommand(String[] tokens) {
         if (tokens.length > 1) {
             subscribedTopic = tokens[1];
@@ -150,8 +151,6 @@ public class ClientHandler implements Runnable {
         }
     }
 
-
-
     private void handleShowCommand() {
         Set<String> topics = topicManager.getAllTopics();
         if (topics.isEmpty()) {
@@ -172,15 +171,16 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleListCommand() {
-        if (subscribedTopic != null) { //controllo se un client ha un topic associato
+        if (subscribedTopic != null) {
             System.out.println("List command invocato da PublisherID: " + publisherId);
+
             List<Message> messages = topicManager.getMessagesByPublisher(subscribedTopic, publisherId);
             if (messages.isEmpty()) {
                 out.println("Non hai inviato alcun messaggio su questo topic.");
             } else {
                 out.println("I tuoi messaggi inviati su '" + subscribedTopic + "':");
                 for (Message message : messages) { //recupera i messaggi del publisher corrente
-                    out.println(message); //stampa id,testo e data di ciascun messaggio
+                    out.println(message); //stampa id, testo e data di ciascun messaggio
                 }
             }
         } else {
@@ -195,8 +195,17 @@ public class ClientHandler implements Runnable {
         } else {
             out.println("Tutti i messaggi inviati su '" + subscribedTopic + "':");
             for (Message message : messages) {
-                out.println(message); // Usa il metodo `toString` di Message
+                out.println(message);
             }
+        }
+    }
+
+    // Metodo per disconnettere i client
+    // utilizzato nella classe Server per gestire la chiusura della connessione dal lato del client
+    public void disconnect() throws IOException {
+        if (clientSocket != null && !clientSocket.isClosed()) {
+            clientSocket.close();
+            System.out.println("Client disconnesso: " + clientSocket.getInetAddress());
         }
     }
 }
