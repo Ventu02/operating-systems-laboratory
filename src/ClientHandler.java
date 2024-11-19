@@ -15,8 +15,11 @@ public class ClientHandler implements Runnable {
     private String clientRole = null; // Ruolo del client (publisher o subscriber)
     private String subscribedTopic = null; // Topic a cui il client è iscritto (se subscriber)
 
+    private final String publisherId; // Identificatore unico del publisher
+
     public ClientHandler(Socket socket) throws IOException {
         this.clientSocket = socket;
+        this.publisherId = clientSocket.getInetAddress().toString() + ":" + clientSocket.getPort(); // Identificatore unico
         in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         out = new PrintWriter(clientSocket.getOutputStream(), true);
     }
@@ -86,6 +89,13 @@ public class ClientHandler implements Runnable {
                 }
                 break;
 
+            case "listall":
+                if (subscribedTopic != null) {
+                    handleListAllCommand();
+                } else {
+                    out.println("Errore: nessun topic associato. Usa 'publish <topic>' o 'subscribe <topic>' per definirne uno.");
+                }
+                break;
 
             case "quit":
                 handleQuitCommand();
@@ -99,13 +109,20 @@ public class ClientHandler implements Runnable {
 
     private void handlePublishCommand(String[] tokens) {
         if (tokens.length > 1) {
-            subscribedTopic = tokens[1]; // Associa il topic al publisher
-            topicManager.addTopic(subscribedTopic);
-            out.println("Topic '" + subscribedTopic + "' creato e pronto per pubblicare.");
+            String topic = tokens[1];
+            if (topicManager.addTopic(topic)) {
+                out.println("Topic '" + topic + "' creato.");
+                System.out.println("Topic '" + topic + "' creato.");
+            } else {
+                out.println("Publisher aggiunto al topic '" + topic + "'.");
+                System.out.println("Publisher aggiunto al topic '" + topic + "'.");
+            }
+            subscribedTopic = topic; // Assegna il topic al publisher
         } else {
             out.println("Errore: specificare il nome del topic.");
         }
     }
+
 
 
     private void handleSubscribeCommand(String[] tokens) {
@@ -123,7 +140,7 @@ public class ClientHandler implements Runnable {
         if (tokens.length > 1) {
             String message = tokens[1];
             if (subscribedTopic != null) { // Assicura che il publisher abbia un topic definito
-                topicManager.publishMessage(subscribedTopic, message); // Pubblica il messaggio sul topic del publisher
+                topicManager.publishMessage(subscribedTopic, message, publisherId); // Passa il publisherId
                 out.println("Messaggio inviato al topic '" + subscribedTopic + "': " + message);
             } else {
                 out.println("Errore: nessun topic associato. Usa 'publish <topic>' per definire un topic.");
@@ -132,6 +149,9 @@ public class ClientHandler implements Runnable {
             out.println("Errore: specificare il messaggio da inviare. Sintassi: send <messaggio>");
         }
     }
+
+
+
     private void handleShowCommand() {
         Set<String> topics = topicManager.getAllTopics();
         if (topics.isEmpty()) {
@@ -153,24 +173,30 @@ public class ClientHandler implements Runnable {
 
     private void handleListCommand() {
         if (subscribedTopic != null) { //controllo se un client ha un topic associato
-            List<Message> messages = topicManager.getMessagesByPublisher(subscribedTopic);
+            System.out.println("List command invocato da PublisherID: " + publisherId);
+            List<Message> messages = topicManager.getMessagesByPublisher(subscribedTopic, publisherId);
             if (messages.isEmpty()) {
-                out.println("Nessun messaggio inviato su questo topic.");
+                out.println("Non hai inviato alcun messaggio su questo topic.");
             } else {
-                out.println("Messaggi inviati:");
-                for (Message message : messages) {
+                out.println("I tuoi messaggi inviati su '" + subscribedTopic + "':");
+                for (Message message : messages) { //recupera i messaggi del publisher corrente
                     out.println(message); //stampa id,testo e data di ciascun messaggio
                 }
             }
         } else {
-            out.println("Errore: nessun topic associato. Usa 'publish <topic>' per definire un topic.");
+            out.println("Errore: nessun topic associato. Usa 'publish <topic>' per definirne uno.");
         }
     }
 
-
+    private void handleListAllCommand() {
+        List<Message> messages = topicManager.getMessagesByPublisher(subscribedTopic); // Recupera i messaggi
+        if (messages.isEmpty()) {
+            out.println("Nessun messaggio inviato su questo topic.");
+        } else {
+            out.println("Tutti i messaggi inviati su '" + subscribedTopic + "':");
+            for (Message message : messages) {
+                out.println(message); // Usa il metodo `toString` di Message
+            }
+        }
+    }
 }
-
-
-
-
-
