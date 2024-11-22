@@ -48,6 +48,15 @@ public class ClientHandler implements Runnable {
 
     // Metodo per gestire i comandi inviati dal client
     private void processCommand(String command) {
+        synchronized (Server.sessionLock) {
+            while (Server.inInteractiveSession) {
+                try {
+                    Server.sessionLock.wait(); // Mette il client in attesa, che verranno sbloccati quando verrà eseguito notifyAll
+                } catch (InterruptedException e) {
+                    System.err.println("Errore durante l'attesa: " + e.getMessage());
+                }
+            }
+        }
         String[] tokens = command.split(" ", 2);
         String action = tokens[0].toLowerCase();
 
@@ -81,7 +90,11 @@ public class ClientHandler implements Runnable {
                 break;
 
             case "show":
-                handleShowCommand();
+                if (clientRole==null) {
+                    handleShowCommand();
+                } else {
+                    out.println("Errore: comando non autorizzato'.");
+                }
                 break;
 
             case "list":
@@ -172,15 +185,16 @@ public class ClientHandler implements Runnable {
 
     private void handleListCommand() {
         if (subscribedTopic != null) {
+            // Debug: verifica il publisherId
             System.out.println("List command invocato da PublisherID: " + publisherId);
 
-            List<Message> messages = topicManager.getMessagesByPublisher(subscribedTopic, publisherId);
+            List<Message> messages = topicManager.getMessagesByPublisher(subscribedTopic, publisherId); // Recupera i messaggi del publisher corrente
             if (messages.isEmpty()) {
                 out.println("Non hai inviato alcun messaggio su questo topic.");
             } else {
                 out.println("I tuoi messaggi inviati su '" + subscribedTopic + "':");
                 for (Message message : messages) { //recupera i messaggi del publisher corrente
-                    out.println(message); //stampa id, testo e data di ciascun messaggio
+                    out.println(message); //stampa id, testo e data di ciascun messaggio inviato dal publisher corrente
                 }
             }
         } else {
@@ -195,7 +209,7 @@ public class ClientHandler implements Runnable {
         } else {
             out.println("Tutti i messaggi inviati su '" + subscribedTopic + "':");
             for (Message message : messages) {
-                out.println(message);
+                out.println(message); //stampa id, testo e data di ciascun messaggio presente nel topic
             }
         }
     }
@@ -209,3 +223,8 @@ public class ClientHandler implements Runnable {
         }
     }
 }
+
+
+
+
+

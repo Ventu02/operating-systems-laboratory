@@ -52,9 +52,9 @@ public class TopicManager {
         SubscriberManager.getInstance().notifySubscribers(topic, text);
     }
 
-    // Metodo che ritorna la lista di tutti i messaggi di un topic specifico
+    // Metodo per ottenere tutti i messaggi inviati su un topic
     public synchronized List<Message> getMessagesByPublisher(String topic) {
-        return topics.getOrDefault(topic, Collections.emptyList()); // Filtra i messaggi del publisher corrente
+        return topics.getOrDefault(topic, Collections.emptyList());
     }
 
     // Metodo per restituire la lista di tutti i topic
@@ -77,5 +77,14 @@ public class TopicManager {
         return allMessages.stream()
                 .filter(message -> publisherId.equals(message.getPublisherId())) // Confronto corretto
                 .collect(Collectors.toList());
+    }
+
+    //Elimina i messaggi specificando l'id
+    public synchronized boolean deleteMessage(String topic, int id) {
+        List<Message> messages = topics.get(topic);
+        if (messages != null) {
+            return messages.removeIf(message -> message.getId() == id); // Rimuove il messaggio con l'ID specificato
+        }
+        return false;
     }
 }
