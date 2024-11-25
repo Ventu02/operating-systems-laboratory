@@ -23,10 +23,6 @@ public class Message {
         return publisherId;
     } //viene richiamato in handleListCommand per identificare un client
 
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-
     @Override
     public String toString() {
         // Formatta la data e l'ora in: ore:minuti:secondi - giorno/mese/anno
