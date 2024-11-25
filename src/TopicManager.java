@@ -1,38 +1,3 @@
-//import java.util.*;
-//
-//public class TopicManager {
-//    private Map<String, List<String>> topics = new HashMap<>(); // Mappa di topic e messaggi associati
-//    private Map<String, List<ClientHandler>> subscribers = new HashMap<>(); // Mappa dei topic e dei subscriber
-//
-//    // Metodo per aggiungere un messaggio a un topic e notificare i subscriber
-//    public synchronized void publishMessage(String topic, String message) {
-//        topics.putIfAbsent(topic, new ArrayList<>()); // Crea il topic se non esiste
-//        topics.get(topic).add(message); // Aggiunge il messaggio alla lista del topic
-//
-//        // Notifica tutti i subscriber per questo topic
-//        SubscriberManager.getInstance().notifySubscribers(topic, message);
-//    }
-//    // Metodo per aggiungere un nuovo subscriber a un topic
-//    public synchronized void addSubscriber(String topic, ClientHandler subscriber) {
-//        subscribers.putIfAbsent(topic, new ArrayList<>());
-//        subscribers.get(topic).add(subscriber);
-//    }
-//
-//    // Metodo per ottenere tutti i messaggi di un topic
-//    public synchronized List<String> getMessages(String topic) {
-//        return topics.getOrDefault(topic, Collections.emptyList());
-//    }
-//
-//    // Metodo per aggiungere un topic
-//    public synchronized void addTopic(String topic) {
-//        topics.putIfAbsent(topic, new ArrayList<>()); // Crea un topic se non esiste già
-//    }
-//
-//    // Metodo per restituire la lista di tutti i topic
-//    public synchronized Set<String> getAllTopics() {
-//        return topics.keySet();
-//    }
-//}
 import java.util.*;
 import java.util.stream.Collectors;
 
